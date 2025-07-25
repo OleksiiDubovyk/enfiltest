@@ -1,0 +1,96 @@
+#' Simulated community trait structure
+#'
+#' The results of a simulation of environmental filtering using the \code{FilterABM} package.
+#' The simulation ran for an environment with 100 patches for 1500 time steps, with the first 1000 steps discarded.
+#' If individuals were dispersing from patch to patch over time, the patch in which an individual spent the most time was recorded.
+#'
+#' @format
+#' A data frame with 100,000 rows and 8 columns:
+#' \describe{
+#'   \item{species}{Species identifier.}
+#'   \item{patch}{Habitat patch identifier.}
+#'   \item{trait_cont}{Continuous trait.}
+#'   \item{trait_cat}{Categorical trait, the result of a K-means classification performed on species-specific means of the continuous trait with K=5.}
+#'   \item{trait_d1}{Discrete distribution trait, four variables adding up to 1, all drawn from the continuous trait.}
+#'   \item{trait_d2}{Discrete distribution trait, four variables adding up to 1, all drawn from the continuous trait.}
+#'   \item{trait_d3}{Discrete distribution trait, four variables adding up to 1, all drawn from the continuous trait.}
+#'   \item{trait_d4}{Discrete distribution trait, four variables adding up to 1, all drawn from the continuous trait.}
+#' }
+#'
+#' @source
+#' A \code{FilterABM} simulation using the following code (random seed was not used so the output may vary).
+#'
+#' \code{devtools::install_github("OleksiiDubovyk/FilterABM")}
+#'
+#' \code{library(FilterABM)}
+#'
+#' \code{regpool_ebd <- lapply(1:500, function(x) FilterABM::init_meta(M = 450, env_mean_mc = 0, env_sd_mc = 10, cauchy = 5.62, trait_sds = 0.01, max_abun = 1e6)) \%>\% bind_rows() \%>\% group_by(species) \%>\% summarise(trait = mean(trait), abundance = round(mean(abundance)), trait_sd = mean(trait_sd)) \%>\% ungroup() \%>\% FilterABM::FilterABM_mc()}
+#'
+#' \code{lh = init_envt(env_mean_lh = 0, env_sd_lh = 3, npatch = 100, gradient = "correlated", rho = 0.95)}
+#'
+#' \code{lc = draw_lcom(mc = regpool_ebd, lh = lh, nind = 100)}
+#'
+#' \code{runsim <- run_sim_(mc = regpool_ebd, lh = lh, lc = lc, nsteps = 1500, progress_bar = T, recruitment = 0.2, dispersal = 1.5, res_input = 10, age_crit = 8, mass_crit = 2, clustering = 1, dispersion = 1)}
+#'
+#' \code{df1_com <- runsim$lcs \%>\% filter(timestep > 1000) \%>\% distinct(species, trait, patch, timestep) \%>\% group_by(species, trait, patch) \%>\% summarise(n = n()) \%>\% filter(n == max(n)) \%>\% ungroup() \%>\% left_join(lh, by = "patch")}
+#'
+#' \code{df1_com <- df1_com \%>\% select(-c(res, n))}
+#'
+#' \code{df1_com <- df1_com \%>\% select(-env) \%>\%   mutate(trait_cont = trait) \%>\% select(-trait)}
+#'
+#' \code{df1_com <- df1_com \%>\% group_by(species) \%>\% mutate(trait_cat = mean(trait_cont)) \%>\% ungroup() \%>\% mutate(trait_cat = kmeans(x = trait_cat, centers = c(-4.5, -3, -1, 1.5, 3.5))$cluster)}
+#'
+#' \code{df1_com <- df1_com \%>\% group_by(species) \%>\% mutate(mt = mean(trait_cont)) \%>\% ungroup() \%>\% mutate(trait_d1 = dnorm(x = mt, mean = -5),trait_d2 = dnorm(x = mt, mean = -1.7), trait_d3 = dnorm(x = mt, mean = 1.7), trait_d4 = dnorm(x = mt, mean = 5)) \%>\% mutate(mt = trait_d1 + trait_d2 + trait_d3 + trait_d4, trait_d1 = (trait_d1/mt) \%>\% round(4), trait_d2 = (trait_d2/mt) \%>\% round(4), trait_d3 = (trait_d3/mt) \%>\% round(4), trait_d4 = (trait_d4/mt) \%>\% round(4)) \%>\% select(-mt)}
+#'
+#' \code{df1_com <- df1_com[sample(1:nrow(df1_com), size = 100000),]}
+#'
+#' \code{df1_com <- df1_com \%>\% mutate(species = paste0("t", species))}
+"df1_com"
+
+#' Simulated environmental factor distribution
+#'
+#' The results of a simulation of environmental filtering using the \code{FilterABM} package.
+#' The environment consists of 100 habitat patches where the environmental factor is correlated with patch index.
+#'
+#' @format
+#' A data frame with 100 rows and 2 columns:
+#' \describe{
+#'   \item{patch}{Habitat patch identifier.}
+#'   \item{env}{Environmental factor level.}
+#' }
+#'
+#' @source
+#' A \code{FilterABM} simulation using the following code (random seed was not used so the output may vary).
+#'
+#' \code{lh = init_envt(env_mean_lh = 0, env_sd_lh = 3, npatch = 100, gradient = "correlated", rho = 0.95)}
+#'
+#' \code{df1_env <- lh \%>\% distinct(patch, env)}
+"df1_env"
+
+#' Random phylogenetic tree for the simulated regional pool
+#'
+#' The results of a simulation of environmental filtering using the \code{FilterABM} package.
+#' A random phylogeny generated with the \code{ape} package.
+#'
+#' @format
+#' A \code{phylo}-class object with 450 tips, 449 nodes.
+#'
+#' @source
+#'
+#' \code{library(ape)}
+#'
+#' \code{df1_phyl <- ape::rtree(n = 450)}
+#'
+"df1_phyl"
+
+#' Assumed distance matrix for categories of a categorical trait.
+#'
+#' In the \code{df1_com} dataset, the categorical trait was generated as a K-means (K=5) clustering of the continuous trait.
+#' This matrix describes dissimilarity between clusters.
+#'
+#' @format
+#' A 5x5 matrix.
+#'
+#' @source
+#' \code{df1_trait_cat_dist <- outer(c(-4.5, -3, -1, 1.5, 3.5), c(-4.5, -3, -1, 1.5, 3.5), '-') \%>\% abs()}
+"df1_trait_cat_dist"

@@ -1,0 +1,27 @@
+Package: enfiltest
+Type: Package
+Title: Detection of traits selected by environmental filters in community assembly
+Version: 0.1.0
+Authors@R: c(
+    person(
+      "Oleksii", "Dubovyk",
+      email = "oadubovyk@gmail.com",
+      role = c("aut", "cre")
+    )
+  )
+Description: Procedures to test the hypothesis that a difference in trait values is positively related to a difference in gradient levels between random pairs of local communities.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.3.2
+Imports:
+    methods,
+    ape, 
+    dplyr, 
+    purrr, 
+    tidyverse,
+    tidyr,
+    scam,
+    qpcR,
+    tibble,
+    magrittr
