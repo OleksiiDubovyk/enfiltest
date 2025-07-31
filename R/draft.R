@@ -265,8 +265,8 @@
 # rpd %>% ggplot(aes(x = d_dist, y = d_trait)) + geom_point() + geom_smooth(method = scam::scam, formula = y ~ s(x, bs = "mpi"))
 #
 # rpd %>%
-#   eftest_models() %>%
-#   eftest_rankAIC()
+#   enfiltest::eftest_models() %>%
+#   enfiltest::eftest_rankAIC()
 #
 # # model building
 #
@@ -340,3 +340,155 @@
 # })
 #
 #
+#
+# # hpc testing
+# library(tidyverse)
+# library(FilterABM)
+# library(enfiltest)
+# library(foreach)
+# library(doParallel)
+#
+# random_importance <- c(runif(1000), runif(1000), runif(1000))
+# trait_types <- c(rep("cont", 1000), rep("cat", 1000), rep("dist", 1000))
+#
+# df_env <- enfiltest::df1_env %>%
+#   mutate(x = patch, y = 0)
+#
+# df_trait_cat_dist <- enfiltest::df1_trait_cat_dist
+# colnames(df_trait_cat_dist) <- 1:5
+# rownames(df_trait_cat_dist) <- colnames(df_trait_cat_dist)
+#
+# df_phyl <- enfiltest::df1_phyl
+#
+# getdata_cat <- function(df_com){
+#
+#   tryCatch({
+#     df_com <- df_com %>%
+#       group_by(species) %>%
+#       mutate(trait_cat = mean(trait_cont)) %>%
+#       ungroup() %>%
+#       mutate(trait_cat = kmeans(x = trait_cat, centers = c(-4.5, -3, -1, 1.5, 3.5))$cluster)
+#
+#     eftest(
+#       rep = 1, npairs = 1000,
+#       comdata = df_com,
+#       envdata = df_env,
+#       env_idx = "env",
+#       com_idx = "patch",
+#       trait_idx = "trait_cat",
+#       taxa_idx = "species",
+#       abun_idx = NULL,
+#       x_idx = "x",
+#       y_idx = "y",
+#       trait_FUN = enfiltest::dist_cat,
+#       phyl_FUN = enfiltest::dist_phyl,
+#       phtree = df1_phyl,
+#       dmatrix = df_trait_cat_dist
+#     )
+#   },
+#   error = function(cond) {NA}
+#   )
+# }
+#
+# num_cores <- detectCores()
+# cl <- makeCluster(num_cores - 1)
+# registerDoParallel(cl)
+#
+# test <- foreach(i = c(1, 1001, 2001),
+#                 .combine = c, .verbose = F, .packages = c("tidyverse", "FilterABM", "enfiltest")
+# ) %dopar%{
+#
+#   df_com <- enfiltest::df1_com %>%
+#     select(species, patch, trait_cont) %>%
+#     mutate(n = 1,
+#            trait_cont = FilterABM::simcor(trait_cont, ymean = mean(trait_cont), ysd = sd(trait_cont), correlation = random_importance[i]))
+#
+#   if (trait_types[i] == "cat"){
+#
+#     getdata_cat(df_com)
+#
+#   }else if (trait_types[i] == "cat"){
+#
+#     df_com <- df_com %>%
+#       group_by(species) %>%
+#       mutate(mt = mean(trait_cont)) %>%
+#       ungroup() %>%
+#       mutate(trait_d1 = dnorm(x = mt, mean = -5),
+#              trait_d2 = dnorm(x = mt, mean = -1.7),
+#              trait_d3 = dnorm(x = mt, mean = 1.7),
+#              trait_d4 = dnorm(x = mt, mean = 5)) %>%
+#       mutate(mt = trait_d1 + trait_d2 + trait_d3 + trait_d4,
+#              trait_d1 = (trait_d1/mt) %>% round(4),
+#              trait_d2 = (trait_d2/mt) %>% round(4),
+#              trait_d3 = (trait_d3/mt) %>% round(4),
+#              trait_d4 = (trait_d4/mt) %>% round(4)) %>%
+#       select(-mt)
+#
+#     eftest(
+#       rep = 1, npairs = 1000,
+#       comdata = df_com,
+#       envdata = df_env,
+#       env_idx = "env",
+#       com_idx = "patch",
+#       trait_idx = c("trait_d1", "trait_d2", "trait_d3", "trait_d4"),
+#       taxa_idx = "species",
+#       abun_idx = NULL,
+#       x_idx = "x",
+#       y_idx = "y",
+#       trait_FUN = enfiltest::dist_distr,
+#       phyl_FUN = enfiltest::dist_phyl,
+#       phtree = df1_phyl
+#     )
+#
+#   }else{
+#
+#     eftest(
+#       rep = 1, npairs = 1000,
+#       comdata = df_com,
+#       envdata = df_env,
+#       env_idx = "env",
+#       com_idx = "patch",
+#       trait_idx = "trait_cont",
+#       taxa_idx = "species",
+#       abun_idx = NULL,
+#       x_idx = "x",
+#       y_idx = "y",
+#       trait_FUN = enfiltest::dist_cont,
+#       phyl_FUN = enfiltest::dist_phyl,
+#       phtree = df1_phyl
+#     )
+#
+#   }
+#
+#
+#
+# }
+#
+# stopCluster(cl)
+#
+# tibble(
+#   importance = random_importance,
+#   tr_type = trait_types,
+#   test = test
+# ) %>%
+#   write_csv("./eft-test-results.csv")
+#
+# test <- read_csv("../hpc_eft_cor/eft-test-results0.csv") %>%
+#   bind_rows(
+#     read_csv("../hpc_eft_cor/eft-test-results1.csv")
+#   ) %>%
+#   filter(tr_type != "cat")
+#
+# test <- test %>%
+#   bind_rows(
+#     read_csv("../hpc_eft_cor/eft-test-results2.csv")
+#   )
+#
+# test %>%
+#   # filter(importance > 0.2) %>%
+#   ggplot(aes(x = importance, y = test,
+#              color = factor(tr_type, levels = c("cont", "cat", "dist"), labels = c("Continuous", "Categorical", "Distribution")))) +
+#   geom_point(alpha = 0.2, stroke = 0) +
+#   geom_smooth() +
+#   labs(xlab = "Trait importance", ylab = "Test statistic", color = "Trait type") +
+#   geom_vline(xintercept = c(1, 0.75, 0.5, 0.2, 0.05))

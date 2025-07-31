@@ -19,6 +19,7 @@ eftest(
   trait_FUN,
   phyl_FUN,
   phtree,
+  aic_threshold = 2,
   ...
 )
 }
@@ -50,6 +51,8 @@ eftest(
 \item{phyl_FUN}{Function, a distance function to assess phylogeny-based distance between the communities. Options include \code{dist_phyl} or a manually written function. If missing but \code{phtree} is not, the \code{enfiltest::dist_phyl} is used by default. If both are missing, phylogenetic distance is not estimated.}
 
 \item{phtree}{Phylogenetic tree (\code{ape} class "\code{phylo}") that includes all taxa from all communities in \code{comdata}. If missing but \code{phyl_FUN} is not, a random tree is generated. If both are missing, phylogenetic distance is not estimated.}
+
+\item{aic_threshold}{Threshold of delta-AIC for the null model; if the null model is within this value of delta-AIC, the test score is automatically zero; default to delta-AIC = 2.}
 
 \item{...}{Additional arguments for \code{trait_FUN}.}
 }
